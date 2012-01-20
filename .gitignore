@@ -1,3 +1,11 @@
+*.gem
+.bundle
+Gemfile.lock
+db_out.txt
+pkg/*
+test/*
+features/*
+
 # rcov generated
 coverage
 

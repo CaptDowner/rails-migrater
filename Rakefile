@@ -1,7 +1,8 @@
-# encoding: utf-8
-
-require 'rubygems'
+# encoding: UTF-8
+#require 'rubygems'
 require 'bundler'
+require "bundler/gem_tasks"
+
 begin
   Bundler.setup(:default, :development)
 rescue Bundler::BundlerError => e
@@ -17,30 +18,42 @@ Jeweler::Tasks.new do |gem|
   gem.name = "rails-migrater"
   gem.homepage = "http://github.com/CaptDowner/rails-migrater"
   gem.license = "MIT"
-  gem.summary = %Q{TODO: one-line summary of your gem}
-  gem.description = %Q{TODO: longer description of your gem}
+  gem.summary = %Q{Utility to query a MySQL database and write a schema file for rails.}
+  gem.description = %Q{Utility to query a MySQL database and return a schema file for use with rails. Run this gem from a rails project root directory: rails-migrater -s [server] -u [username] -p [password] -d [database]
+
+This will write a file in the %rails_root%/db directory, and will be named: [YYYYMMDDhhmmss]_[database name]_schema.rb
+
+This file can then be used to migrate an existing database to rails.
+}
   gem.email = "captdowner@comcast.net"
-  gem.authors = ["CaptDowner"]
+  gem.authors = ["Steve Downie"]
   # dependencies defined in Gemfile
 end
 Jeweler::RubygemsDotOrgTasks.new
 
+require 'rspec/core'
+require 'rspec/core/rake_task'
+RSpec::Core::RakeTask.new(:spec) do |spec|
+  spec.pattern = FileList['spec/**/*_spec.rb']
+end
+
+RSpec::Core::RakeTask.new(:rcov) do |spec|
+  spec.pattern = 'spec/**/*_spec.rb'
+  spec.rcov = true
+end
+
 require 'rake/testtask'
-Rake::TestTask.new(:test) do |test|
-  test.libs << 'lib' << 'test'
-  test.pattern = 'test/**/test_*.rb'
-  test.verbose = true
+
+Rake::TestTask.new do |t|
+  t.libs.push "lib"
+  t.test_files = FileList['test/*_test.rb']
+  t.verbose = true
 end
 
-require 'rcov/rcovtask'
-Rcov::RcovTask.new do |test|
-  test.libs << 'test'
-  test.pattern = 'test/**/test_*.rb'
-  test.verbose = true
-  test.rcov_opts << '--exclude "gems/*"'
-end
+#require 'cucumber/rake/task'
+#Cucumber::Rake::Task.new(:features)
 
-task :default => :test
+#task :default => :spec
 
 require 'rake/rdoctask'
 Rake::RDocTask.new do |rdoc|
