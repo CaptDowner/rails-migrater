@@ -17,18 +17,20 @@ EOSQL
 
 $preamble =<<EOSTR
 
-This file will auto generate table schema from the current state of the database. 
+This file, given a valid host, user, password and database,  will auto generate table schema from the current state of the database. 
 
-Usage: ruby mygr8er.rb -vqlh -s [server] -u [user] -p [password] -d [database]
+Usage: ruby-migrater -vqlh -s [server] -u [user] -p [password] -d [database]
 
 Defaults: There are default values that can be assigned to the initialize method, which allow you to assign values for the most commonly used options.
 
-Note: This schema.rb definition is an additional source for your database schema, and is useful for migrating existing databases to ActiveRecord style schema, which is database independent. 
+Note: This schema.rb definition is an additional source for your database schema, and is useful for migrating existing databases to ActiveRecord style schema, which is database independent. Schema files are named as [YYYYMMDDhhmmss]_[database_name]_schema.rb and are placed into the ./db directory if it exists. Otherwise, the file is written to the current directory.
 
 You can also use db:schema:load.
 
 It's recommended to check this file into your version control system.
 
 EOSTR
+
+$version = '0.2.0'
 
 
