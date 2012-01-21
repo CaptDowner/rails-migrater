@@ -5,6 +5,8 @@ db_out.txt
 pkg/*
 test/*
 features/*
+# ignore output files
+2012*
 
 # rcov generated
 coverage
