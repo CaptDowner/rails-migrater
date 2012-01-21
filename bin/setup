@@ -1,0 +1,130 @@
+#!/usr/bin/ruby
+#config.autoload_paths += Dir["#{config.root}/lib", "#{config.root}/lib/**/"]
+#$LOAD_PATH.unshift(File.dirname(__FILE__) + '/../lib')
+# Q: Should this be placed in the ./bin driectory?
+# Q: What does module_function actually do?
+#
+require 'rbconfig'
+require 'ruby-debug'
+$debug = true
+module OS
+  class << self
+    def is?(what)
+      what === RbConfig::CONFIG['host_os']
+    end
+    alias is is?
+
+    def to_s
+      RbConfig::CONFIG['host_os']
+    end
+  end
+
+  module_function
+
+  def linux?
+    OS.is? /linux|cygwin/
+  end
+
+  def mac?
+    OS.is? /mac|darwin/
+  end
+
+  def bsd?
+    OS.is? /bsd/
+  end
+
+  def windows?
+    OS.is? /mswin|win|mingw/
+  end
+
+  def solaris?
+    OS.is? /solaris|sunos/
+  end
+
+  def posix?
+    linux? or mac? or bsd? or solaris? or Process.respond_to?(:fork)
+  end
+
+end
+
+# Write a file that will prompt the user for inputs for host, user,
+# password and database, with optional setting for port, socket and
+# flags and wrtie these files to a file named .dbconfig
+class ConfigWriter
+  attr_accessor :host, :user, :password, :database, :port, :socket, :flags, :os
+  include OS  
+  
+  def initialize
+    if windows? # assign the default username
+      @user ||= ENV['USERNAME']     
+    else        # username for linux, mac, and most other OSes
+      @user ||= ENV['USER'] 
+    end  
+    
+    @host ||= "localhost"
+    @password ||= "" 
+    @database ||= ""
+    @port ||= "3306"
+    @socket ||= ""
+    @flags ||= {}
+  end
+
+  def prompt(default, *args)
+    print(*args)
+    result = gets.strip
+    return result.empty? ? default : result
+  end
+  
+  def write_config
+    buf = String.new
+    f = File.new("./.dbconfig", "w")
+    
+    buf << "#\n# Configuration file for rails-migrater\n#\n"
+    buf << "{\n"
+    buf << "  :host => #{@host},\n"
+    buf << "  :user => #{@user},\n"
+    buf << "  :password => #{@password},\n" unless @password.empty?
+    buf << "  :database => #{@database},\n" unless @database.empty?
+    buf << "  :port => #{@port}"
+    buf << ",\n  :socket => #{@socket}" unless @socket.empty?
+    buf << ",\n  :flags => #{flags}\n" unless @flags.empty?
+    buf << "\n}\n"
+    f.write(buf)    
+    f.close if f
+  end
+  
+  def prompt_user
+    @host = prompt("localhost", "Host (localhost): ")
+    @user = prompt(ENV['USER'], "User (#{ENV['USER']}): ")
+    @password = prompt("", "Password (none): ")
+    @database = prompt("", "Database (all): ")
+    @port = prompt("3306", "Port (3306): ")
+    @socket = prompt("/var/lib/mysql/mysql.sock", "Socket (/var/lib/mysql/mysql.sock): ")
+    @flags = prompt("", "Flags (default): ")
+  end
+  
+  def show_file(f)
+    puts "\n\nPlease run setup again if the following settings are not correct.\nHere is your configuration file:"
+    while(line = f.gets)
+      puts line
+    end  
+  end
+end
+
+def prompt(default, *args)
+  print(*args)
+  result = gets.strip
+  return result.empty? ? default : result
+end
+
+cw = ConfigWriter.new
+
+puts("\nDatabase setup for rails-migrater.\n[Enter] selects the default choice.\n\n")  
+cw.prompt_user  
+cw.write_config
+puts "\nrails-migrater configuration successfully written!\n"
+
+if $debug
+  f = File.open(".dbconfig", "r")
+  cw.show_file(f)
+end

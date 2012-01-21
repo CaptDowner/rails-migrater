@@ -1,0 +1,102 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.unshift(File.dirname(__FILE__) + '/../lib')
+require 'migrater'
+require 'migrater_globals'
+require 'mysql2'
+$debug = true
+
+db = Migrater::DBConn.new
+# process command line arguments in any order
+db.get_commands(ARGV)
+# todo: Errors must be handled gracefully for database errors
+# on host, username, password, and database
+db.conn = Mysql2::Client.new(:host => db.host, :username => db.user, :password => db.password, :database => db.database)
+
+begin
+  if $debug
+    puts $preamble
+  end
+  
+#  con = Mysql2::Client.new(:host => 'localhost', :username => 'sdownie', :password => 'sailing')
+  buf = String.new
+  # Assign a string representing the current time
+  # in the format "YYYYMMDDhhmmss"
+  sstr = Migrater::SecondString.new
+  if $debug
+    puts sstr.today
+  end
+  
+  f = File.new("db_out.txt", "w") 
+  # if no database was requested
+  # dump all database schema
+  if db.database.empty? 
+    res.each do |m| 
+      m.each_pair do |k,v|
+        f.write("Database = #{v}\n")
+        db.conn.query("use #{v}")
+        res2 = db.conn.query("show tables")
+        res2.each do |n|
+          n.each_pair do |ke,va|
+            f.write("  Table = #{va}\n")
+            res3 = db.conn.query("describe #{va}")
+            res3.each do |o|
+              o.each_pair do |key,value|
+                f.write("    #{key} = #{value}\n")
+              end
+            end
+          end   
+        end    
+        f.write("\n") 
+      end 
+    end 
+  else  # lookup the database schema by database name
+    f.write("Database = #{db.database}\n")    
+    db.conn.query("use #{db.database}")
+    res2 = db.conn.query("show tables")
+    res2.each do |n|
+      n.each_pair do |ke,va|
+        f.write("  Table = #{va}\n")
+        res3 = db.conn.query("describe #{va}")
+        res3.each do |o|
+          o.each_pair do |key,value|
+            f.write("    #{key} = #{value}\n")
+          end
+        end
+      end   
+    end    
+    
+  end
+  f.close
+  
+  mschema = Migrater::MasterSchema.new
+  f = File.open("db_out.txt", "r")
+  mschema.read_tables_from_file(f)
+  f.close
+  if $debug
+    puts mschema.master_ary
+  end
+
+  path1 = "./db/"
+
+  if (File.exists?(path1) && File.directory?(path1))
+    path_prefix = "./db/"  
+  else
+    path_prefix="./"
+  end
+  
+  f = File.new("#{ path_prefix}#{sstr.today}_#{db.database}_schema.rb","w")
+  mschema.write_schema(f)
+  f.close
+rescue Mysql2::Error => e
+    puts e.errno
+    puts e.error
+    
+ensure
+    db.conn.close if db.conn
+end
+
+if $debug 
+  puts "host = #{db.host}\nuser = #{db.user}\npassword = #{db.password}\ndatabase = #{db.database}"   
+  puts "db.conn.class = #{db.conn.class}"  
+end
+
