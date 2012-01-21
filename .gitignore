@@ -7,6 +7,7 @@ test/*
 features/*
 # ignore output files
 2012*
+.dbconfig
 
 # rcov generated
 coverage
