@@ -1,22 +1,22 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "migr8er/version"
+require "migrater/version"
 
 Gem::Specification.new do |s|
-  s.name        = "migr8er"
-  s.version     = SchemaGetter::VERSION
+  s.name        = "rails-migrater"
+  s.version     = Migrater::VERSION
   s.authors     = ["CaptDowner"]
   s.email       = ["captdowner@comcast.net"]
   s.homepage    = ""
-  s.summary     = %q{migr8er is a gem for extracting MySQL database tables.}
-  s.description = %q{migr8er extracts database table information and write 
+  s.summary     = %q{rails-migrater is a gem for extracting MySQL database tables.}
+  s.description = %q{rails-migrater extracts database table information and writes 
                      all of the table information out to a file called 
-                     "[YYYYMMDDhhmmss_mysql_schema.rb". Once written, this file 
+                     "[YYYYMMDDhhmmss_[databasename]_schema.rb". Once written, this file 
                      can be used in Rails to read and write to an existing database. 
                      You need to know the specific database name, and know a valid 
                      use and password with read/write access to this database. }
 
-  s.rubyforge_project = "migr8er"
+  s.rubyforge_project = "rails-migrater"
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
