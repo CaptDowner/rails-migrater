@@ -1,14 +1,14 @@
 # encoding: UTF-8
 # migr8er.rb - Script to obtain table information from a MySQL database
 #
-require "./lib/migr8er/version"
-require "./lib/migr8er_globals"
+require "./lib/migrater/version"
+require "./lib/migrater_globals"
 require 'ruby-debug'
 require 'mysql2'
 $debug = true
 
-module Migr8er 
-  # Migr8er is the object that stores a master array
+module Migrater 
+  # Migrater is the object that stores a master array
   # which contains the database name, table names and table data
   # extracted from a MySQL database in order to write a schema 
   # that can be used in rails
@@ -198,9 +198,7 @@ module Migr8er
     end
     
     # write out the new schema file for use with rails
-    def write_schema
-      f = File.new("new_schema.rb","w")      
-
+    def write_schema(f)
       time = SecondString.new
       subsequent_table = false # boolean false until first table
       
@@ -246,7 +244,6 @@ module Migr8er
         puts @schema_buf
       end
       f.write(@schema_buf)
-      f.close
     end  
   end
   
@@ -278,7 +275,6 @@ module Migr8er
       @schema = hsh unless hsh.empty?
       @fields_ary << @schema      
     end
-    
   end
 
   class SchemaReader
@@ -291,7 +287,6 @@ module Migr8er
       @dbname = db 
       @tname = String.new
     end
-        
   end
     
   # The Table class stores the title of the table along with 
@@ -329,18 +324,24 @@ module Migr8er
       0.upto arr.length - 1 do|x|
         case arr[x]
           # print help message and bail out
-          when '-h' || '--help'
-           puts $preamble
-           exit
+          when /\A-h\Z/, /\A--help\Z/
+            puts $preamble
+            abort
+          when /\A-v\Z/, /\A--version\Z/
+
+            puts $version
+            abort
           # override defaults if given command line options
-          when '-s' ||'--server'      
+          when /\A-s\Z/, /\A--server\Z/      
             @host = arr[x+=1]     # set server name and skip ahead 
-          when '-u' || 'user'                            
+          when /\A-u\Z/, /\A--user\Z/                            
             @user = arr[x+=1]     # set user name and skip ahead     
-          when '-p' || '--password'                       
+          when /\A-p\Z/, /\A--password\Z/                       
             @password = arr[x+=1] # set user password and skip ahead  
-          when '-d' || '--database'                      
+          when /\A-d\Z/, /\A--database\Z/                      
             @database = arr[x+=1] # set database name and skip ahead 
+          else
+            abort("Unknown command option: #{arr[x]}, please correct and try again.")
         end
       end
     end
