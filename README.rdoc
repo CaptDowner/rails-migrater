@@ -1,6 +1,15 @@
 = rails-migrater
 
-Description goes here.
+Ruby gem to output a database migration schema from a MySQL database. 
+This is a command line program that works as follows:
+
+rails-migrater -s [server] -u [user] -p [database_password] -d [database]
+
+This outputs two files. One is "db_out.txt" and the other is a schema file 
+entitled [YYYYMMDDhhmmss]_[database_name]_scheme.rb
+
+Currently only MySQL is supported. Future support is planned for SQLite, 
+PostGRES and other databases. (help requested?)
 
 == Contributing to rails-migrater
  
