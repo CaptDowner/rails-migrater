@@ -1,6 +1,14 @@
 # encoding: UTF-8
-# migr8er.rb - Script to obtain table information from a MySQL database
+# migrater.rb - Script to obtain table information from a MySQL database
 #
+# Q: I know I should have tests, but TestUnit, RSpec or Cucumber?
+# Q: If you haven't written tests first, what is the best way to add tests to existing code?
+# Q: refactor def read_tables_from_file(f)?
+# Q: refactor def check_default(str)? 
+#
+#
+# TODOs: Add index processing for MySQL to schema 
+#        Write tests and determine a methodology to write them first
 require "./lib/migrater/version"
 require "./lib/migrater_globals"
 require 'ruby-debug'
@@ -13,13 +21,14 @@ module Migrater
   # extracted from a MySQL database in order to write a schema 
   # that can be used in rails
   #
-  # This array will contained mixed objects:
+  # The @master_ary array will contain mixed objects:
   #
   # Array  = contains only a single database name
   # String = contains a single table name
   # Hash   = contains a set of fields and attributes 
   #          for each table column
-  # 
+  #
+  # This lets us determine what we are dealing with by object type 
   class MasterSchema
     attr_accessor :master_ary, :dbname, :tname, :schema_buf
     
@@ -32,36 +41,36 @@ module Migrater
 
     # this method is passed a text file pointer
     # that points to the start of a database 
-    # dump of a database and all of the database's
-    # table definitions, to sollect the data to 
-    # write a proper rails migration
+    # dump of a the database's table definitions, 
+    # to collect the data and write a proper rails migration
     def read_tables_from_file(f)
       hsh = Hash.new                     # hash to contain each table's columns and attributes
 
       while(line = f.gets) 
-        if /Database = /.match(line)
+        if line =~ /Database = /
           @dbname << line.split(' = ')[1].strip # get database name and remove newline
-          @master_ary << @dbname
+          @master_ary << @dbname  
           
-        elsif /Table = /.match(line)
+        elsif line =~ /Table = /  
           @tname = line.split(' = ')[1].strip # get table and remove newline char
           @master_ary << @tname
-        elsif /Field = /.match(line)
+
+         elsif line =~ /Field = / 
           hsh['field'] = line.split(' = ')[1].strip unless line.split(" = ")[1].strip.empty?
           
-        elsif /Type = /.match(line)
+         elsif line =~ /Type = / 
           hsh['type'] = line.split(' = ')[1].strip unless line.split(" = ")[1].strip.empty?
           
-        elsif /Null = /.match(line)
+         elsif line =~ /Null = / 
           hsh['null'] = line.split(' = ')[1].strip unless line.split(" = ")[1].strip.empty?
           
-        elsif /Key = /.match(line)
+         elsif line =~ /Key = / 
           hsh['key'] = line.split(' = ')[1].strip unless line.split(" = ")[1].strip.empty?
           
-        elsif /Default = /.match(line)
+         elsif line =~ /Default = / 
           hsh['default'] = line.split(' = ')[1].strip unless line.split(" = ")[1].strip.empty?
           
-        elsif /Extra = /.match(line)
+         elsif line =~ /Extra = / 
           hsh['extra'] = line.split(' = ')[1].strip unless line.split(" = ")[1].strip.empty?
           @master_ary << hsh    # assign this column's hash to the master array
           hsh = {}              # clear out the hash and start again
@@ -104,12 +113,14 @@ module Migrater
       limit = ar[1].split(',')
       buf << ", :limit => ["
       limit.each do |option|
-        buf << ':' << option << ','
+        buf << ':' << option.tr("'","") << ','
       end
-      buf.chomp!(',')
-      buf << ']'
+      buf.chomp!(',') # remove the last comma
+      buf << ']'      # end the options array 
     end
     
+    # extract null settings
+    # and return string to migration
     def check_null(str)
       if((str != nil) || (str != ""))  
         if str.match(/YES/)
@@ -129,6 +140,8 @@ module Migrater
       end
     end
     
+    # check default setting and
+    # set it and return it to the migration
     def check_default(str)
       if str
         if (str.strip != "")
@@ -138,58 +151,76 @@ module Migrater
       str
     end
     
+    # currently not used
     def check_extra(str)
       # ignore for now until I find useful documentation
+      # suspect this is not used for rails migrations
+      # but used for internal MySQL stuff
     end
     
+    # obj is a hash of each column and associated attributes
+    # extracted from a MySQL database
     def process_hash(obj)
       buf = String.new
       case obj['type']
         when /varchar/
           buf << "    t.string   \"#{obj['field']}\""
           buf << check_limit(obj['type'])
+        
         when /\Achar/
           buf << "    t.string   \"#{obj['field']}\""
-          buf << check_limit(obj['type'])       
+          buf << check_limit(obj['type'])
+        
         when /int/
           if obj['field'] == "id"
             puts "skipping id for rails..."
           else  
-            buf << "    t.integer  \"#{obj['field']}\""                        
+            buf << "    t.integer  \"#{obj['field']}\""
             buf << check_limit(obj['type'])
           end
         
         when /tinyint/
-          buf << "    t.boolean  \"#{obj['field']}\""                        
+          buf << "    t.boolean  \"#{obj['field']}\""
+        
         when /text/
           buf << "    t.text     \"#{obj['field']}\""
+        
         when /date/
-          buf << "    t.date     \"#{obj['field']}\""       
+          buf << "    t.date     \"#{obj['field']}\""
           obj['default'] = "Time.now"
+        
         when /datetime/
-          buf << "    t.datetime \"#{obj['field']}\""                        
+          buf << "    t.datetime \"#{obj['field']}\""
           obj['default'] = "Time.now"
+        
         when /time/
-          buf << "    t.time     \"#{obj['field']}\""                        
+          buf << "    t.time     \"#{obj['field']}\""
           obj['default'] = "Time.now"
+        
         when /timestamp/
           buf << "    t.timestamp \"#{obj['field']}\""
           obj['default'] = "Time.now"
+        
         when /decimal/
-          buf << "    t.decimal  \"#{obj['field']}\""                        
+          buf << "    t.decimal  \"#{obj['field']}\""
+        
         when /float/
-          buf << "    t.float    \"#{obj['field']}\""                        
+          buf << "    t.float    \"#{obj['field']}\""
+        
         when /enum/
-          buf << "    t.enum     \"#{obj['field']}\""                        
+          buf << "    t.enum     \"#{obj['field']}\""
+          buf <<  check_enum(obj['type'])
+        
         when /blob/
           buf << "    t.binary   \"#{obj['field']}\""
+        
       end  
       if obj['field'] != "id"
         buf << check_null(obj['null'])
       end  
       if obj['default']
         if obj['field'] != "id"        
-          buf << check_default(obj['default'])        
+          buf << check_default(obj['default'])
         end  
       end
       buf << "\n"     
@@ -319,7 +350,8 @@ module Migrater
     def connect_to_db
       @conn = Mysql2::Client.new(@host, @user, @pword, @dbname )            
     end
-        
+
+    # use regexes to parse the array of command line arguments 
     def get_commands(arr)
       0.upto arr.length - 1 do|x|
         case arr[x]
@@ -327,25 +359,26 @@ module Migrater
           when /\A-h\Z/, /\A--help\Z/
             puts $preamble
             abort
-          when /\A-v\Z/, /\A--version\Z/
-
+          
+          # print the version string and bail out
+          when /\A(-v|--version)\Z/
             puts $version
             abort
+          
           # override defaults if given command line options
-          when /\A-s\Z/, /\A--server\Z/      
-            @host = arr[x+=1]     # set server name and skip ahead 
-          when /\A-u\Z/, /\A--user\Z/                            
-            @user = arr[x+=1]     # set user name and skip ahead     
-          when /\A-p\Z/, /\A--password\Z/                       
+          when /\A(-s|--server)\Z/
+            @host = arr[x+=1]     # set server name and skip ahead
+          when /\A(-u|--user)\Z/
+            @user = arr[x+=1]     # set user name and skip ahead
+          when /\A(-p|--password)\Z/
             @password = arr[x+=1] # set user password and skip ahead  
-          when /\A-d\Z/, /\A--database\Z/                      
-            @database = arr[x+=1] # set database name and skip ahead 
+          when /\A(-d|--database)\Z/
+            @database = arr[x+=1] # set database name and skip ahead
           else
             abort("Unknown command option: #{arr[x]}, please correct and try again.")
         end
       end
     end
-    
   end
 end
 
